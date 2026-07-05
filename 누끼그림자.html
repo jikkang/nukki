@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>제품 누끼 레츠고</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+    background: #f4f4f2; color: #222; min-height: 100vh; padding: 32px 16px;
+  }
+  .wrap { max-width: 900px; margin: 0 auto; }
+  h1 { font-size: 29px; margin-bottom: 8px; }
+  .sub { color: #777; font-size: 16px; margin-bottom: 20px; line-height: 1.5; }
+  #drop {
+    border: 2px dashed #bbb; border-radius: 16px; background: #fff;
+    padding: 48px 20px; text-align: center; cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  #drop.over { border-color: #4a7cf7; background: #eef3ff; }
+  #drop p { color: #888; font-size: 15px; }
+  #drop .big { font-size: 17px; color: #444; margin-bottom: 6px; font-weight: 600; }
+  #fileInput { display: none; }
+  .controls {
+    display: flex; flex-wrap: wrap; gap: 16px 28px; align-items: center;
+    background: #fff; border-radius: 12px; padding: 16px 20px; margin: 18px 0;
+    font-size: 13px;
+  }
+  .controls label { display: flex; align-items: center; gap: 8px; }
+  .controls input[type=range] { width: 110px; }
+  .num {
+    width: 58px; font-size: 12px; padding: 3px 5px; border: 1px solid #ddd;
+    border-radius: 6px; color: #4a7cf7; text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .num:focus { outline: 1.5px solid #4a7cf7; border-color: #4a7cf7; }
+  .item {
+    background: #fff; border-radius: 14px; padding: 18px; margin-bottom: 18px;
+    display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start;
+  }
+  .item .col { flex: 1 1 300px; min-width: 260px; }
+  .item h3 { font-size: 13px; color: #999; font-weight: 600; margin-bottom: 8px; }
+  .item canvas, .item img {
+    width: 100%; border-radius: 10px; border: 1px solid #eee;
+    background:
+      repeating-conic-gradient(#e9e9e9 0% 25%, #fff 0% 50%) 50% / 18px 18px;
+  }
+  .item .name { font-size: 13px; color: #555; margin-bottom: 8px; word-break: break-all; }
+  .status { font-size: 13px; color: #4a7cf7; padding: 6px 0; }
+  .btn {
+    display: inline-block; background: #222; color: #fff; border: none;
+    border-radius: 8px; padding: 9px 16px; font-size: 13px; cursor: pointer;
+    margin-top: 10px;
+  }
+  .btn:hover { background: #000; }
+  .btn.ghost { background: #eee; color: #444; margin-left: 8px; }
+  .btn.ghost:hover { background: #ddd; }
+  .error { color: #d33; font-size: 13px; word-break: break-all; }
+  .adj {
+    width: 100%; margin-top: 14px; background: #fafafa;
+    border: 1px solid #eee; border-radius: 10px; padding: 12px 14px;
+  }
+  .adj summary {
+    cursor: pointer; font-size: 13px; font-weight: 600; color: #444;
+    user-select: none;
+  }
+  .adj-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 8px 22px; margin-top: 12px; font-size: 12px;
+  }
+  .adj-grid label {
+    display: grid; grid-template-columns: 84px 1fr 62px; align-items: center; gap: 8px;
+    color: #555;
+  }
+  .adj-grid input[type=range] { width: 100%; }
+  .adj-sep { grid-column: 1 / -1; font-size: 11px; color: #999; margin-top: 4px; }
+  .footer {
+    margin-top: 36px; text-align: center; font-size: 12px; color: #aaa;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>제품 누끼 레츠고 (그림자+보정+왜곡까지)</h1>
+  <p class="sub">사진을 끌어다 놓으면 AI가 배경을 지우고 자연스러운 그림자를 넣어 투명 PNG로 만들어 줍니다.
+  처음 한 번만 AI 모델(88MB)을 내려받으며, 그 다음부터는 빠르게 처리됩니다. 사진은 컴퓨터 밖으로 전송되지 않아요.
+  결과마다 아래 <b>보정</b> 패널에서 기울기·왜곡·밝기·광원 등을 조절할 수 있어요.
+  <b>왜곡을 먼저 맞추고 자동 수평을 누르는 순서를 추천드립니다.</b></p>
+
+  <div id="drop">
+    <p class="big">여기에 사진을 끌어다 놓거나 클릭해서 선택</p>
+    <p>JPG · PNG · WEBP, 여러 장 한꺼번에 가능</p>
+    <input type="file" id="fileInput" accept="image/*" multiple>
+  </div>
+
+  <div class="controls">
+    <label>그림자 진하기(%) <input type="range" id="opacity" min="0" max="80" value="35"><input type="number" class="num" id="opacityN" min="0" max="80" value="35"></label>
+    <label>그림자 퍼짐 <input type="range" id="blur" min="1" max="12" value="4"><input type="number" class="num" id="blurN" min="1" max="12" value="4"></label>
+    <label>그림자 위치 <input type="range" id="offset" min="0" max="8" value="2"><input type="number" class="num" id="offsetN" min="0" max="8" value="2"></label>
+    <label>여백(%) <input type="range" id="margin" min="0" max="20" value="8"><input type="number" class="num" id="marginN" min="0" max="20" value="8"></label>
+    <label><input type="checkbox" id="whiteBg"> 흰색 배경</label>
+    <label><input type="checkbox" id="shadowOn" checked> 그림자</label>
+  </div>
+
+  <div id="list"></div>
+
+  <p class="footer">Created by : Lee Jinkyeong  (dlwlsrud728@naver.com)</p>
+</div>
+
+<script>
+/* ============================================================
+   AI 엔진: onnxruntime-web + ISNet 모델을 직접 로딩
+   ============================================================ */
+const ORT_BASES = [
+  "https://unpkg.com/onnxruntime-web@1.17.3/dist/",
+  "https://cdn.jsdelivr.net/npm/onnxruntime-web@1.17.3/dist/",
+];
+const DATA_BASES = [
+  "https://unpkg.com/@imgly/background-removal-data@1.4.5/dist/",
+  "https://staticimgly.com/@imgly/background-removal-data/1.4.5/dist/",
+];
+const RESOLUTION = 1024;
+let session = null;
+let sessionPromise = null;
+
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement("script");
+    s.src = src;
+    s.onload = () => res();
+    s.onerror = () => rej(new Error("스크립트 로딩 실패: " + src));
+    document.head.appendChild(s);
+  });
+}
+
+async function loadOrt(status) {
+  if (window.ort) return;
+  const errs = [];
+  for (const base of ORT_BASES) {
+    try {
+      status("AI 엔진 불러오는 중… (" + new URL(base).host + ")");
+      await loadScript(base + "ort.min.js");
+      if (window.ort) {
+        ort.env.wasm.wasmPaths = base;
+        ort.env.wasm.numThreads = 1;
+        ort.env.wasm.proxy = false;
+        return;
+      }
+    } catch (e) { errs.push(e.message); }
+  }
+  throw new Error("AI 엔진 로딩 실패 — " + errs.join(" / "));
+}
+
+async function fetchModel(status) {
+  const errs = [];
+  for (const base of DATA_BASES) {
+    try {
+      status("모델 정보 확인 중… (" + new URL(base).host + ")");
+      const r = await fetch(base + "resources.json");
+      if (!r.ok) { errs.push(new URL(base).host + ": HTTP " + r.status); continue; }
+      const resources = await r.json();
+      const entry = resources["/models/medium"];
+      if (!entry) { errs.push(new URL(base).host + ": 모델 항목 없음"); continue; }
+      const total = entry.size;
+      const buf = new Uint8Array(total);
+      let done = 0;
+      for (const chunk of entry.chunks) {
+        const cr = await fetch(base + chunk.hash);
+        if (!cr.ok) throw new Error("조각 다운로드 실패 HTTP " + cr.status);
+        const ab = new Uint8Array(await cr.arrayBuffer());
+        buf.set(ab, chunk.offsets[0]);
+        done += ab.length;
+        status("AI 모델 내려받는 중… " + Math.round(done / total * 100) + "% (처음 한 번만)");
+      }
+      return buf.buffer;
+    } catch (e) {
+      errs.push(new URL(base).host + ": " + (e.message || e));
+    }
+  }
+  throw new Error("모델 다운로드 실패 — " + errs.join(" / "));
+}
+
+async function getSession(status) {
+  if (session) return session;
+  if (!sessionPromise) {
+    sessionPromise = (async () => {
+      await loadOrt(status);
+      const modelBuf = await fetchModel(status);
+      status("AI 준비 중… (10~20초 정도 걸려요)");
+      session = await ort.InferenceSession.create(modelBuf, {
+        executionProviders: ["wasm"],
+      });
+      return session;
+    })().catch(e => { sessionPromise = null; throw e; });
+  }
+  return sessionPromise;
+}
+
+async function removeBg(file, status) {
+  const sess = await getSession(status);
+  status("배경 제거 중…");
+
+  const bmp = await createImageBitmap(file);
+  const ow = bmp.width, oh = bmp.height;
+
+  const rc = document.createElement("canvas");
+  rc.width = RESOLUTION; rc.height = RESOLUTION;
+  const rctx = rc.getContext("2d");
+  rctx.drawImage(bmp, 0, 0, RESOLUTION, RESOLUTION);
+  const rd = rctx.getImageData(0, 0, RESOLUTION, RESOLUTION).data;
+
+  const stride = RESOLUTION * RESOLUTION;
+  const input = new Float32Array(3 * stride);
+  for (let i = 0, j = 0; j < stride; i += 4, j++) {
+    input[j]              = (rd[i]     - 128) / 256;
+    input[j + stride]     = (rd[i + 1] - 128) / 256;
+    input[j + stride * 2] = (rd[i + 2] - 128) / 256;
+  }
+
+  const tensor = new ort.Tensor("float32", input, [1, 3, RESOLUTION, RESOLUTION]);
+  const out = await sess.run({ input: tensor });
+  const mask = out.output.data;
+
+  const mc = document.createElement("canvas");
+  mc.width = RESOLUTION; mc.height = RESOLUTION;
+  const mctx = mc.getContext("2d");
+  const mid = mctx.createImageData(RESOLUTION, RESOLUTION);
+  for (let j = 0; j < stride; j++) {
+    mid.data[j * 4 + 3] = Math.max(0, Math.min(255, mask[j] * 255));
+  }
+  mctx.putImageData(mid, 0, 0);
+
+  const oc = document.createElement("canvas");
+  oc.width = ow; oc.height = oh;
+  const octx = oc.getContext("2d");
+  octx.drawImage(bmp, 0, 0);
+  octx.globalCompositeOperation = "destination-in";
+  octx.imageSmoothingEnabled = true;
+  octx.imageSmoothingQuality = "high";
+  octx.drawImage(mc, 0, 0, ow, oh);
+  return oc;
+}
+
+/* ============================================================
+   기하 보정: 회전 · 자동 수평 · 원근 왜곡(키스톤)
+   ============================================================ */
+function rotateCanvas(src, deg) {
+  if (!deg) return src;
+  const rad = deg * Math.PI / 180;
+  const c = Math.abs(Math.cos(rad)), s = Math.abs(Math.sin(rad));
+  const w = src.width, h = src.height;
+  const W = Math.ceil(w * c + h * s), H = Math.ceil(w * s + h * c);
+  const out = document.createElement("canvas");
+  out.width = W; out.height = H;
+  const ctx = out.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.translate(W / 2, H / 2);
+  ctx.rotate(rad);
+  ctx.drawImage(src, -w / 2, -h / 2);
+  return out;
+}
+
+// 위아래 왜곡(수직 키스톤): +값 = 아래쪽을 넓힘, -값 = 위쪽을 넓힘
+function keystoneV(src, amount) {
+  if (!amount) return src;
+  const k = amount / 100 * 0.3; // 최대 ±30%
+  const w = src.width, h = src.height;
+  const maxScale = 1 + Math.abs(k);
+  const W = Math.ceil(w * maxScale);
+  const out = document.createElement("canvas");
+  out.width = W; out.height = h;
+  const ctx = out.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  for (let y = 0; y < h; y++) {
+    const t = h > 1 ? y / (h - 1) : 0;
+    const scale = 1 + k * (t - 0.5) * 2;
+    const dw = w * scale;
+    ctx.drawImage(src, 0, y, w, 1, (W - dw) / 2, y, dw, 1);
+  }
+  return out;
+}
+
+// 좌우 왜곡(수평 키스톤): +값 = 오른쪽을 넓힘, -값 = 왼쪽을 넓힘
+function keystoneH(src, amount) {
+  if (!amount) return src;
+  const k = amount / 100 * 0.3;
+  const w = src.width, h = src.height;
+  const maxScale = 1 + Math.abs(k);
+  const H = Math.ceil(h * maxScale);
+  const out = document.createElement("canvas");
+  out.width = w; out.height = H;
+  const ctx = out.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  for (let x = 0; x < w; x++) {
+    const t = w > 1 ? x / (w - 1) : 0;
+    const scale = 1 + k * (t - 0.5) * 2;
+    const dh = h * scale;
+    ctx.drawImage(src, x, 0, 1, h, x, (H - dh) / 2, 1, dh);
+  }
+  return out;
+}
+
+// 알파 실루엣의 외곽 상자 넓이가 최소가 되는 각도 탐색 = 수평 각도
+function findStraightAngle(cut) {
+  const maxSide = 256;
+  const scale = maxSide / Math.max(cut.width, cut.height);
+  const sw = Math.max(1, Math.round(cut.width * scale));
+  const sh = Math.max(1, Math.round(cut.height * scale));
+  const sc = document.createElement("canvas");
+  sc.width = sw; sc.height = sh;
+  const sctx = sc.getContext("2d");
+  sctx.drawImage(cut, 0, 0, sw, sh);
+  const d = sctx.getImageData(0, 0, sw, sh).data;
+
+  const xs = [], ys = [];
+  for (let y = 0; y < sh; y++) {
+    for (let x = 0; x < sw; x++) {
+      if (d[(y * sw + x) * 4 + 3] > 128) { xs.push(x); ys.push(y); }
+    }
+  }
+  if (xs.length < 20) return 0;
+
+  const areaAt = deg => {
+    const rad = deg * Math.PI / 180;
+    const c = Math.cos(rad), s = Math.sin(rad);
+    let minU = 1e9, maxU = -1e9, minV = 1e9, maxV = -1e9;
+    for (let i = 0; i < xs.length; i++) {
+      const u = xs[i] * c - ys[i] * s;
+      const v = xs[i] * s + ys[i] * c;
+      if (u < minU) minU = u; if (u > maxU) maxU = u;
+      if (v < minV) minV = v; if (v > maxV) maxV = v;
+    }
+    return (maxU - minU) * (maxV - minV);
+  };
+
+  let best = 0, bestA = areaAt(0);
+  for (let deg = -15; deg <= 15; deg += 0.5) {
+    const a = areaAt(deg);
+    if (a < bestA) { bestA = a; best = deg; }
+  }
+  for (let deg = best - 0.5; deg <= best + 0.5; deg += 0.05) {
+    const a = areaAt(deg);
+    if (a < bestA) { bestA = a; best = deg; }
+  }
+  return Math.round(best * 10) / 10;
+}
+
+/* ============================================================
+   보정: 밝기·대비·선명하게·노이즈감소·활기·채도·색상균형·광원
+   ============================================================ */
+const ADJ_DEFS = [
+  { key: "bright",  label: "밝기",        min: -100, max: 100 },
+  { key: "contrast",label: "대비",        min: -100, max: 100 },
+  { key: "sharp",   label: "선명하게",    min: 0,    max: 100 },
+  { key: "denoise", label: "노이즈 감소",  min: 0,   max: 100 },
+  { key: "vib",     label: "활기",        min: -100, max: 100 },
+  { key: "sat",     label: "채도",        min: -100, max: 100 },
+  { key: "lightV",  label: "위 아래 밝히기", min: -100, max: 100, sep: "광원 보정 (탑뷰 보완) — 위아래: +는 아래쪽, −는 위쪽 / 좌우: +는 오른쪽, −는 왼쪽" },
+  { key: "lightH",  label: "좌우 밝히기",  min: -100, max: 100 },
+  { key: "cbR",     label: "청록-빨강",   min: -100, max: 100, sep: "색상 균형 (미드톤)" },
+  { key: "cbG",     label: "마젠타-초록", min: -100, max: 100 },
+  { key: "cbB",     label: "노랑-파랑",   min: -100, max: 100 },
+];
+function defaultParams() {
+  const p = {};
+  for (const d of ADJ_DEFS) p[d.key] = 0;
+  return p;
+}
+function isDefault(p) { return ADJ_DEFS.every(d => p[d.key] === 0); }
+
+function applyAdjust(item) {
+  const src = item.subject;
+  const p = item.params;
+  const w = src.width, h = src.height;
+
+  if (isDefault(p)) { item.adjusted = src; return; }
+
+  const out = document.createElement("canvas");
+  out.width = w; out.height = h;
+  const octx = out.getContext("2d");
+  octx.drawImage(src, 0, 0);
+  const idata = octx.getImageData(0, 0, w, h);
+  const d = idata.data;
+
+  let bd = null;
+  if (p.sharp > 0 || p.denoise > 0) {
+    const bc = document.createElement("canvas");
+    bc.width = w; bc.height = h;
+    const bctx = bc.getContext("2d");
+    bctx.filter = "blur(1.5px)";
+    bctx.drawImage(src, 0, 0);
+    bd = bctx.getImageData(0, 0, w, h).data;
+  }
+
+  const bAdd = p.bright * 1.2;
+  const cF = (259 * (p.contrast + 255)) / (255 * (259 - p.contrast));
+  const dk = p.denoise / 100 * 0.85;
+  const sk = p.sharp / 100 * 1.1;
+  const satF = p.sat / 100;
+  const vibF = p.vib / 100;
+  const cbOn = p.cbR || p.cbG || p.cbB;
+  const lvOn = p.lightV !== 0, lhOn = p.lightH !== 0;
+  const lv = p.lightV * 1.3, lh = p.lightH * 1.3;
+
+  for (let y = 0; y < h; y++) {
+    const ty = h > 1 ? y / (h - 1) : 0;
+    const lightRow = lvOn ? (lv > 0 ? lv * ty : -lv * (1 - ty)) : 0;
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (d[i + 3] === 0) continue;
+      let r = d[i], g = d[i + 1], b = d[i + 2];
+
+      if (bd) {
+        const br = bd[i], bg = bd[i + 1], bb = bd[i + 2];
+        if (dk > 0) { r = r * (1 - dk) + br * dk; g = g * (1 - dk) + bg * dk; b = b * (1 - dk) + bb * dk; }
+        if (sk > 0) { r += sk * (r - br); g += sk * (g - bg); b += sk * (b - bb); }
+      }
+
+      let light = lightRow;
+      if (lhOn) {
+        const tx = w > 1 ? x / (w - 1) : 0;
+        light += lh > 0 ? lh * tx : -lh * (1 - tx);
+      }
+      if (light !== 0) { r += light; g += light; b += light; }
+
+      r += bAdd; g += bAdd; b += bAdd;
+
+      r = cF * (r - 128) + 128;
+      g = cF * (g - 128) + 128;
+      b = cF * (b - 128) + 128;
+
+      if (cbOn) {
+        const l = (r + g + b) / 3;
+        const wgt = Math.max(0, 1 - Math.abs(l - 128) / 140);
+        r += p.cbR * 0.6 * wgt;
+        g += p.cbG * 0.6 * wgt;
+        b += p.cbB * 0.6 * wgt;
+      }
+
+      if (satF !== 0 || vibF !== 0) {
+        const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        let f = 1 + satF;
+        if (vibF !== 0) {
+          const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+          const s = (mx - mn) / 255;
+          f += vibF * (1 - s);
+        }
+        r = gray + (r - gray) * f;
+        g = gray + (g - gray) * f;
+        b = gray + (b - gray) * f;
+      }
+
+      d[i]     = r < 0 ? 0 : r > 255 ? 255 : r;
+      d[i + 1] = g < 0 ? 0 : g > 255 ? 255 : g;
+      d[i + 2] = b < 0 ? 0 : b > 255 ? 255 : b;
+    }
+  }
+
+  octx.putImageData(idata, 0, 0);
+  item.adjusted = out;
+}
+
+/* ============================================================
+   UI
+   ============================================================ */
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("fileInput");
+const list = document.getElementById("list");
+const items = [];
+
+function bindPair(range, num, onChange) {
+  const clamp = v => Math.max(+range.min, Math.min(+range.max, v));
+  range.addEventListener("input", () => {
+    num.value = range.value;
+    onChange(+range.value);
+  });
+  num.addEventListener("input", () => {
+    if (num.value === "" || num.value === "-") return;
+    const v = clamp(+num.value);
+    range.value = v;
+    onChange(v);
+  });
+  num.addEventListener("blur", () => {
+    const v = clamp(+num.value || 0);
+    num.value = v; range.value = v;
+    onChange(v);
+  });
+}
+
+const ctrl = {
+  opacity: document.getElementById("opacity"),
+  blur: document.getElementById("blur"),
+  offset: document.getElementById("offset"),
+  margin: document.getElementById("margin"),
+  whiteBg: document.getElementById("whiteBg"),
+  shadowOn: document.getElementById("shadowOn"),
+};
+for (const key of ["opacity", "blur", "offset", "margin"]) {
+  bindPair(ctrl[key], document.getElementById(key + "N"), () => items.forEach(render));
+}
+ctrl.whiteBg.addEventListener("input", () => items.forEach(render));
+ctrl.shadowOn.addEventListener("input", () => items.forEach(render));
+
+drop.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", () => handleFiles(fileInput.files));
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add("over");
+}));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove("over");
+}));
+drop.addEventListener("drop", e => handleFiles(e.dataTransfer.files));
+
+function handleFiles(files) {
+  for (const f of files) {
+    if (!f.type.startsWith("image/")) continue;
+    processFile(f);
+  }
+}
+
+// 기하 보정 순서: 왜곡(위아래→좌우) → 회전 → 크롭
+function applyGeometry(item) {
+  let c = item.cut;
+  c = keystoneV(c, item.keyV);
+  c = keystoneH(c, item.keyH);
+  c = rotateCanvas(c, item.rotation);
+  item.subject = cropToAlpha(c);
+  applyAdjust(item);
+  render(item);
+}
+function scheduleGeometry(item) {
+  clearTimeout(item.geoTimer);
+  item.geoTimer = setTimeout(() => applyGeometry(item), 150);
+}
+
+function buildAdjPanel(item) {
+  const details = document.createElement("details");
+  details.className = "adj";
+  details.innerHTML = "<summary>보정 (기울기 · 왜곡 · 밝기 · 광원 · 색상)</summary>";
+  const grid = document.createElement("div");
+  grid.className = "adj-grid";
+
+  const sepR = document.createElement("div");
+  sepR.className = "adj-sep";
+  sepR.textContent = "기울기·왜곡 — 왜곡을 먼저 맞추고 자동 수평을 누르는 순서를 추천드립니다. 왜곡: +는 아래(오른쪽)를 넓힘";
+  grid.appendChild(sepR);
+
+  const geoDefs = [
+    { key: "rotation", label: "회전(°)",   min: -20,  max: 20,  step: 0.1 },
+    { key: "keyV",     label: "위아래 왜곡", min: -100, max: 100, step: 1 },
+    { key: "keyH",     label: "좌우 왜곡",  min: -100, max: 100, step: 1 },
+  ];
+  item.geoCtrl = {};
+  for (const def of geoDefs) {
+    const label = document.createElement("label");
+    const nm = document.createElement("span");
+    nm.textContent = def.label;
+    const range = document.createElement("input");
+    range.type = "range";
+    range.min = def.min; range.max = def.max; range.step = def.step; range.value = 0;
+    const num = document.createElement("input");
+    num.type = "number";
+    num.className = "num";
+    num.min = def.min; num.max = def.max; num.step = def.step; num.value = 0;
+    bindPair(range, num, v => {
+      item[def.key] = v;
+      scheduleGeometry(item);
+    });
+    label.append(nm, range, num);
+    grid.appendChild(label);
+    item.geoCtrl[def.key] = { range, num };
+  }
+
+  for (const def of ADJ_DEFS) {
+    if (def.sep) {
+      const sep = document.createElement("div");
+      sep.className = "adj-sep";
+      sep.textContent = def.sep;
+      grid.appendChild(sep);
+    }
+    const label = document.createElement("label");
+    const nm = document.createElement("span");
+    nm.textContent = def.label;
+    const range = document.createElement("input");
+    range.type = "range";
+    range.min = def.min; range.max = def.max; range.value = 0;
+    const num = document.createElement("input");
+    num.type = "number";
+    num.className = "num";
+    num.min = def.min; num.max = def.max; num.value = 0;
+    bindPair(range, num, v => {
+      item.params[def.key] = v;
+      scheduleAdjust(item);
+    });
+    label.append(nm, range, num);
+    grid.appendChild(label);
+    item.sliders.push({ range, num, key: def.key });
+  }
+
+  const auto = document.createElement("button");
+  auto.className = "btn";
+  auto.textContent = "자동 수평 맞추기";
+  auto.addEventListener("click", () => {
+    let c = item.cut;
+    c = keystoneV(c, item.keyV);
+    c = keystoneH(c, item.keyH);
+    const deg = findStraightAngle(c);
+    item.rotation = deg;
+    item.geoCtrl.rotation.range.value = deg;
+    item.geoCtrl.rotation.num.value = deg;
+    applyGeometry(item);
+  });
+
+  const reset = document.createElement("button");
+  reset.className = "btn ghost";
+  reset.textContent = "보정 초기화";
+  reset.addEventListener("click", () => {
+    item.params = defaultParams();
+    item.rotation = 0; item.keyV = 0; item.keyH = 0;
+    for (const k in item.geoCtrl) {
+      item.geoCtrl[k].range.value = 0;
+      item.geoCtrl[k].num.value = 0;
+    }
+    for (const s of item.sliders) { s.range.value = 0; s.num.value = 0; }
+    applyGeometry(item);
+  });
+
+  const btnRow = document.createElement("div");
+  btnRow.append(auto, reset);
+  details.append(grid, btnRow);
+  return details;
+}
+
+function scheduleAdjust(item) {
+  clearTimeout(item.timer);
+  item.timer = setTimeout(() => {
+    applyAdjust(item);
+    render(item);
+  }, 120);
+}
+
+async function processFile(file) {
+  const el = document.createElement("div");
+  el.className = "item";
+  el.innerHTML = `
+    <div class="col">
+      <h3>원본</h3>
+      <div class="name"></div>
+      <img>
+    </div>
+    <div class="col">
+      <h3>결과 (투명 PNG)</h3>
+      <div class="status">준비 중…</div>
+      <canvas style="display:none"></canvas>
+      <button class="btn" style="display:none">PNG 다운로드</button>
+    </div>`;
+  list.prepend(el);
+  el.querySelector(".name").textContent = file.name;
+
+  const img = el.querySelector("img");
+  img.src = URL.createObjectURL(file);
+  const statusEl = el.querySelector(".status");
+  const canvas = el.querySelector("canvas");
+  const btn = el.querySelector(".btn");
+  const setStatus = t => { statusEl.textContent = t; };
+
+  try {
+    const cut = await removeBg(file, setStatus);
+    const subject = cropToAlpha(cut);
+
+    const item = {
+      name: file.name, cut, subject, adjusted: subject, canvas,
+      params: defaultParams(), sliders: [], timer: null,
+      rotation: 0, keyV: 0, keyH: 0, geoTimer: null, geoCtrl: null,
+    };
+    items.push(item);
+
+    render(item);
+    statusEl.remove();
+    canvas.style.display = "block";
+    btn.style.display = "inline-block";
+    btn.addEventListener("click", () => download(item));
+
+    el.appendChild(buildAdjPanel(item));
+  } catch (e) {
+    statusEl.className = "error";
+    statusEl.textContent = "오류: " + (e.message || e);
+  }
+}
+
+function cropToAlpha(c) {
+  const w = c.width, h = c.height;
+  const d = c.getContext("2d").getImageData(0, 0, w, h).data;
+  let minX = w, minY = h, maxX = 0, maxY = 0;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (d[(y * w + x) * 4 + 3] > 8) {
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+  }
+  if (maxX <= minX) return c;
+  const out = document.createElement("canvas");
+  out.width = maxX - minX + 1; out.height = maxY - minY + 1;
+  out.getContext("2d").drawImage(c, -minX, -minY);
+  return out;
+}
+
+function render(item) {
+  const s = item.adjusted;
+  const sizeRef = Math.max(s.width, s.height);
+  const margin = Math.round(sizeRef * (+ctrl.margin.value / 100));
+  const W = s.width + margin * 2, H = s.height + margin * 2;
+
+  const cv = item.canvas;
+  cv.width = W; cv.height = H;
+  const ctx = cv.getContext("2d");
+  ctx.clearRect(0, 0, W, H);
+
+  if (ctrl.whiteBg.checked) {
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  if (ctrl.shadowOn.checked) {
+    const op = +ctrl.opacity.value / 100;
+    const blurPx = sizeRef * (+ctrl.blur.value / 100);
+    const off = sizeRef * (+ctrl.offset.value / 100);
+
+    const sil = document.createElement("canvas");
+    sil.width = s.width; sil.height = s.height;
+    const sx = sil.getContext("2d");
+    sx.drawImage(s, 0, 0);
+    sx.globalCompositeOperation = "source-in";
+    sx.fillStyle = "#000";
+    sx.fillRect(0, 0, sil.width, sil.height);
+
+    ctx.save();
+    ctx.filter = "blur(" + blurPx + "px)";
+    ctx.globalAlpha = op;
+    ctx.drawImage(sil, margin + off * 0.6, margin + off);
+    ctx.restore();
+
+    ctx.save();
+    ctx.filter = "blur(" + (blurPx * 0.4) + "px)";
+    ctx.globalAlpha = Math.min(1, op * 0.7);
+    ctx.drawImage(sil, margin + off * 0.3, margin + off * 0.5);
+    ctx.restore();
+  }
+
+  ctx.drawImage(s, margin, margin);
+}
+
+function download(item) {
+  item.canvas.toBlob(blob => {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = item.name.replace(/\.[^.]+$/, "") + "_nukki.png";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, "image/png");
+}
+</script>
+</body>
+</html>
